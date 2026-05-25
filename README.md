@@ -117,8 +117,9 @@ function collides(a, b) {
 
 ## 🔗 Links
 
+- **GitHub Repo:** [ilkinismayilov-905/GameProject](https://github.com/ilkinismayilov-905/GameProject)
 - **AI Diary:** [AI_DIARY.md](./AI_DIARY.md)
-- **Live Game (GitHub Pages):** _Add after deploying to GitHub Pages_
+- **Live Game (GitHub Pages):** [https://ilkinismayilov-905.github.io/GameProject/](https://ilkinismayilov-905.github.io/GameProject/)
 
 ---
 
