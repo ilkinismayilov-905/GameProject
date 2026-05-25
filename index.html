@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Space Shooter – a browser-based vanilla JS arcade game. Dodge enemies, shoot them down, beat your high score!" />
+  <title>Space Shooter 🚀</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- ===== START SCREEN ===== -->
+  <div id="start-screen" class="screen active">
+    <div class="screen-content">
+      <div class="logo-wrapper">
+        <h1 class="game-title">SPACE<br/><span class="accent">SHOOTER</span></h1>
+        <div class="title-glow"></div>
+      </div>
+      <p class="subtitle">Survive the alien invasion</p>
+
+      <div class="controls-info">
+        <div class="control-row">
+          <span class="key-badge">W A S D</span>
+          <span>or</span>
+          <span class="key-badge">↑ ← ↓ →</span>
+          <span>Move</span>
+        </div>
+        <div class="control-row">
+          <span class="key-badge">SPACE</span>
+          <span>Shoot</span>
+        </div>
+      </div>
+
+      <div class="high-score-display" id="start-high-score">
+        <span class="hs-label">BEST</span>
+        <span class="hs-value" id="start-hs-value">0</span>
+      </div>
+
+      <button id="start-btn" class="btn-primary" aria-label="Start game">
+        START GAME
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== GAME OVER SCREEN ===== -->
+  <div id="gameover-screen" class="screen">
+    <div class="screen-content">
+      <h2 class="go-title">GAME OVER</h2>
+      <div class="go-stats">
+        <div class="stat-card">
+          <span class="stat-label">SCORE</span>
+          <span class="stat-value" id="go-score">0</span>
+        </div>
+        <div class="stat-card highlight">
+          <span class="stat-label">BEST</span>
+          <span class="stat-value" id="go-high-score">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">WAVE</span>
+          <span class="stat-value" id="go-wave">1</span>
+        </div>
+      </div>
+      <div id="new-record-badge" class="new-record hidden">🏆 NEW RECORD!</div>
+      <div class="go-buttons">
+        <button id="restart-btn" class="btn-primary" aria-label="Restart game">
+          PLAY AGAIN
+        </button>
+        <button id="menu-btn" class="btn-secondary" aria-label="Go to main menu">
+          MAIN MENU
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== HUD ===== -->
+  <div id="hud" class="hidden">
+    <div class="hud-left">
+      <div class="hud-item">
+        <span class="hud-label">SCORE</span>
+        <span class="hud-value" id="hud-score">0</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">WAVE</span>
+        <span class="hud-value" id="hud-wave">1</span>
+      </div>
+    </div>
+    <div class="hud-right">
+      <div class="hud-item">
+        <span class="hud-label">BEST</span>
+        <span class="hud-value" id="hud-high-score">0</span>
+      </div>
+      <div class="hud-item lives-container" id="lives-display">
+        <!-- hearts injected by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== CANVAS ===== -->
+  <canvas id="game-canvas"></canvas>
+
+  <script src="game.js"></script>
+</body>
+</html>
