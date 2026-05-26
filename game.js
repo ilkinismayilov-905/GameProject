@@ -165,7 +165,7 @@ class Player {
     this.height = 56;
     this.x      = canvas.width  / 2 - this.width  / 2;
     this.y      = canvas.height - this.height - 40;
-    this.speed  = 8;
+    this.baseSpeed = 11; // increased default speed for faster movement
     this.lives  = 3;
     this.score  = 0;
     this.shootCooldown   = 0;
@@ -176,6 +176,7 @@ class Player {
     // Power-up states
     this.tripleShot  = 0; // frames remaining
     this.rapidFire   = 0; // frames remaining
+    this.speedBoost  = 0; // frames remaining for speed boost
     this.shield      = false;
   }
 
@@ -186,8 +187,9 @@ class Player {
     const moveY = (keys['ArrowUp']    || keys['w'] || keys['W']) ? -1
                 : (keys['ArrowDown']  || keys['s'] || keys['S']) ?  1 : 0;
 
-    this.x += moveX * this.speed;
-    this.y += moveY * this.speed * 0.6;
+    const speed = this.speedBoost > 0 ? 17 : this.baseSpeed;
+    this.x += moveX * speed;
+    this.y += moveY * speed * 0.6;
 
     // Clamp to canvas
     this.x = Math.max(0, Math.min(canvas.width  - this.width,  this.x));
@@ -198,6 +200,7 @@ class Player {
     if (this.invincible    > 0) this.invincible--;
     if (this.tripleShot    > 0) this.tripleShot--;
     if (this.rapidFire     > 0) this.rapidFire--;
+    if (this.speedBoost    > 0) this.speedBoost--;
     this.thrusterFlicker = (this.thrusterFlicker + 1) % 6;
   }
 
@@ -241,12 +244,40 @@ class Player {
     ctx.save();
     ctx.translate(cx, cy);
 
+    // --- Dynamic colors based on active power-up ---
+    let primaryColor   = '#7b2fff'; // default purple
+    let secondaryColor = '#b07cff';
+    let darkColor      = '#3a007a';
+    let glowColor      = '#00e5ff'; // default cyan cockpit
+
+    if (this.shield) {
+      primaryColor   = '#2563eb';
+      secondaryColor = '#60a5fa';
+      darkColor      = '#1e3a8a';
+      glowColor      = '#93c5fd';
+    } else if (this.tripleShot > 0) {
+      primaryColor   = '#7c3aed';
+      secondaryColor = '#a78bfa';
+      darkColor      = '#4c1d95';
+      glowColor      = '#c084fc';
+    } else if (this.rapidFire > 0) {
+      primaryColor   = '#d97706';
+      secondaryColor = '#facc15';
+      darkColor      = '#78350f';
+      glowColor      = '#fef08a';
+    } else if (this.speedBoost > 0) {
+      primaryColor   = '#e11d48';
+      secondaryColor = '#f43f5e';
+      darkColor      = '#4c0519';
+      glowColor      = '#fda4af';
+    }
+
     // --- Thruster flame ---
     const flicker = this.thrusterFlicker < 3 ? 1 : 0.75;
-    const flameH  = 20 * flicker;
+    const flameH  = (this.speedBoost > 0 ? 32 : 20) * flicker;
     const thrustGrad = ctx.createLinearGradient(0, 22, 0, 22 + flameH);
-    thrustGrad.addColorStop(0, 'rgba(0,229,255,0.9)');
-    thrustGrad.addColorStop(0.5, 'rgba(123,47,255,0.7)');
+    thrustGrad.addColorStop(0, secondaryColor);
+    thrustGrad.addColorStop(0.5, primaryColor);
     thrustGrad.addColorStop(1, 'transparent');
     ctx.beginPath();
     ctx.moveTo(-10, 22);
@@ -254,19 +285,19 @@ class Player {
     ctx.lineTo(  0, 22 + flameH);
     ctx.closePath();
     ctx.fillStyle = thrustGrad;
-    ctx.shadowColor = '#00e5ff';
+    ctx.shadowColor = secondaryColor;
     ctx.shadowBlur  = 20;
     ctx.fill();
 
     // --- Ship body ---
-    ctx.shadowColor = '#7b2fff';
+    ctx.shadowColor = primaryColor;
     ctx.shadowBlur  = 22;
 
     // Hull gradient
     const bodyGrad = ctx.createLinearGradient(-24, -28, 24, 28);
-    bodyGrad.addColorStop(0,   '#b07cff');
-    bodyGrad.addColorStop(0.5, '#7b2fff');
-    bodyGrad.addColorStop(1,   '#3a007a');
+    bodyGrad.addColorStop(0,   secondaryColor);
+    bodyGrad.addColorStop(0.5, primaryColor);
+    bodyGrad.addColorStop(1,   darkColor);
 
     // Main body
     ctx.beginPath();
@@ -283,11 +314,11 @@ class Player {
     // Cockpit window
     ctx.beginPath();
     ctx.ellipse(0, -6, 7, 10, 0, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0,229,255,0.25)';
-    ctx.shadowColor = '#00e5ff';
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.shadowColor = glowColor;
     ctx.shadowBlur  = 14;
     ctx.fill();
-    ctx.strokeStyle = 'rgba(0,229,255,0.6)';
+    ctx.strokeStyle = glowColor;
     ctx.lineWidth   = 1.5;
     ctx.stroke();
 
@@ -474,6 +505,15 @@ const POWERUP_TYPES = [
     ringStroke:'rgba(96,165,250,0.55)',
     glowColor: '#1d4ed8',
     label:     'SHIELD',
+  },
+  {
+    key:       'speed',
+    emoji:     '🚀',
+    ringColor: '#f43f5e',
+    ringFill:  'rgba(244,63,94,0.10)',
+    ringStroke:'rgba(244,63,94,0.55)',
+    glowColor: '#be123c',
+    label:     'SPEED BOOST',
   },
 ];
 
@@ -669,6 +709,7 @@ function renderPowerupHUD() {
   if (player.shield)             items.push({ emoji: '🛡️', label: 'SHIELD',       color: '#60a5fa' });
   if (player.tripleShot > 0)     items.push({ emoji: '🔱', label: 'TRIPLE',       color: '#a78bfa', frames: player.tripleShot });
   if (player.rapidFire  > 0)     items.push({ emoji: '⚡', label: 'RAPID',        color: '#facc15', frames: player.rapidFire  });
+  if (player.speedBoost > 0)     items.push({ emoji: '🚀', label: 'SPEED',        color: '#f43f5e', frames: player.speedBoost });
   powerupHUD.innerHTML = items.map(it => {
     const secs = it.frames ? Math.ceil(it.frames / 60) + 's' : '';
     return `<span class="pup-badge" style="border-color:${it.color};color:${it.color}">${it.emoji} ${it.label}${secs ? ' ' + secs : ''}</span>`;
@@ -791,6 +832,9 @@ function update() {
       } else if (key === 'shield') {
         player.shield = true;
         spawnExplosion(particles, cx, cy, '#60a5fa', 14);
+      } else if (key === 'speed') {
+        player.speedBoost = 480; // 8 seconds
+        spawnExplosion(particles, cx, cy, '#f43f5e', 14);
       }
       renderPowerupHUD();
       return false;
