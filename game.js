@@ -169,7 +169,7 @@ class Player {
     this.lives  = 3;
     this.score  = 0;
     this.shootCooldown   = 0;
-    this.shootDelay      = 14; // frames
+    this.shootDelay      = 9;  // reduced cooldown for faster default shooting
     this.invincible      = 0;  // invincibility frames after hit
     this.thrusterFlicker = 0;
     this.dead   = false;
@@ -204,14 +204,14 @@ class Player {
   shoot(bullets) {
     if (this.shootCooldown > 0) return;
     const cx = this.x + this.width / 2;
-    const delay = this.rapidFire > 0 ? Math.floor(this.shootDelay / 2) : this.shootDelay;
+    const delay = this.rapidFire > 0 ? Math.max(2, Math.floor(this.shootDelay / 2)) : this.shootDelay;
     if (this.tripleShot > 0) {
       // Center + two angled bullets
-      bullets.push(new Bullet(cx,      this.y - 4, -12,   '#00e5ff', true));
-      bullets.push(new Bullet(cx - 14, this.y + 4, -11.5, '#a78bfa', true));
-      bullets.push(new Bullet(cx + 14, this.y + 4, -11.5, '#a78bfa', true));
+      bullets.push(new Bullet(cx,      this.y - 4, -16,   '#00e5ff', true));
+      bullets.push(new Bullet(cx - 14, this.y + 4, -15.5, '#a78bfa', true));
+      bullets.push(new Bullet(cx + 14, this.y + 4, -15.5, '#a78bfa', true));
     } else {
-      bullets.push(new Bullet(cx, this.y - 4, -12, '#00e5ff', true));
+      bullets.push(new Bullet(cx, this.y - 4, -16, '#00e5ff', true));
     }
     this.shootCooldown = delay;
   }
