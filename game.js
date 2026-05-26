@@ -171,7 +171,7 @@ class Player {
     this.shootCooldown   = 0;
     this.shootDelay      = 14; // frames
     this.invincible      = 0;  // invincibility frames after hit
-    this.thrusterFlicker = 0;
+    this.thrusterFlicker = 0;  // commit
     this.dead   = false;
   }
 
