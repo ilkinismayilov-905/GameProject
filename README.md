@@ -23,21 +23,10 @@ You pilot a lone starship defending against endless waves of alien invaders. Thr
 | **Particle** | Explosion debris on death or hit |
 | **Star** | Scrolling background parallax decoration |
 
-### 🖼️ Game Sketch (Excalidraw)
+### 🖼️ Game Sketch & Blueprint (Excalidraw)
 
-> _See `excalidraw-sketch.png` in the repo root (exported from Excalidraw planning session)_
+![Space Shooter Game Blueprint & Power-Ups](excalidraw-sketch.png)
 
-```
-┌─────────────────────────────┐
-│  ★  ★     ★        ★       │
-│         ◆  ⬡               │
-│    ★          ⬡   ★         │
-│       ◆                    │
-│   |  (bullet)              │
-│   ▲  (player ship)         │
-│  HUD: SCORE | WAVE | LIVES │
-└─────────────────────────────┘
-```
 
 ### 📐 Architecture & Data Flow (Excalidraw Diagram)
 
