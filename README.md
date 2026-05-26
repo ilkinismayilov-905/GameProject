@@ -39,6 +39,61 @@ You pilot a lone starship defending against endless waves of alien invaders. Thr
 └─────────────────────────────┘
 ```
 
+### 📐 Architecture & Data Flow (Excalidraw Diagram)
+
+Below is the design and architecture blueprint showing the game loop, player states, HUD updates, and the dynamic power-up reactive system:
+
+```mermaid
+graph TD
+    %% Base Styles
+    classDef loop fill:#111,stroke:#7b2fff,stroke-width:2px,color:#fff;
+    classDef player fill:#1d4ed8,stroke:#60a5fa,stroke-width:2px,color:#fff;
+    classDef powerup fill:#0f172a,stroke:#facc15,stroke-width:2px,color:#fff;
+    classDef system fill:#064e3b,stroke:#00ff88,stroke-width:2px,color:#fff;
+    classDef UI fill:#1e1b4b,stroke:#a78bfa,stroke-width:2px,color:#fff;
+
+    %% Elements
+    GameLoop["🔄 Core Game Loop (gameLoop / update / draw)"]:::loop
+    PlayerInput["⌨️ Player Inputs (Keys W/A/S/D / Space)"]:::player
+    PlayerState["🚀 Player Entity (x, y, lives, speedBoost, shield, rapidFire, tripleShot)"]:::player
+    PowerUpManager["⚡ Power-up Spawn Engine (spawns random PowerUp)"]:::powerup
+    PowerUpCollision["💥 Collision Detector (AABB)"]:::system
+    
+    subgraph Reactive Skins (Visual Feedback)
+        DynamicSkin["🎨 Dynamic Renderer (draw)"]:::player
+        DefaultPurple["💜 Purple Default Skin"]:::player
+        ShieldBlue["💙 Blue Qalxan (Shield)"]:::player
+        TriplePurple["💜 Purple Triple Shot"]:::player
+        RapidYellow["💛 Yellow Sürətli Atəş (Rapid)"]:::player
+        SpeedRose["❤️ Rose Sürətli Hərəkət (Speed)"]:::player
+    end
+
+    subgraph User Interface (HUD)
+        HUD_Score["🏆 HUD Score & HighScore"]:::UI
+        HUD_Lives["❤️ HUD Lives Indicator"]:::UI
+        HUD_Powerups["📊 Power-up Status Badges & Timers"]:::UI
+    end
+
+    %% Flow Connections
+    GameLoop -->|"1. Poll Input"| PlayerInput
+    PlayerInput -->|"2. Update Position / Shoot"| PlayerState
+    GameLoop -->|"3. Auto Spawn Every ~8s"| PowerUpManager
+    PowerUpManager -->|"Spawn Object"| PowerUpCollision
+    PlayerState -->|"Verify Collision"| PowerUpCollision
+    
+    PowerUpCollision -->|"Apply Buffs"| PlayerState
+    
+    PlayerState -->|"4. Draw Ship Structure"| DynamicSkin
+    DynamicSkin -->|"Check Shield"| ShieldBlue
+    DynamicSkin -->|"Check TripleShot"| TriplePurple
+    DynamicSkin -->|"Check RapidFire"| RapidYellow
+    DynamicSkin -->|"Check SpeedBoost"| SpeedRose
+    DynamicSkin -->|"No Active Powerup"| DefaultPurple
+
+    PlayerState -->|"5. Update HUD Info"| HUD_Powerups
+    PlayerState -->|"Update Canlar"| HUD_Lives
+```
+
 ---
 
 ## 🕹️ How to Play
