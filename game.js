@@ -165,7 +165,7 @@ class Player {
     this.height = 56;
     this.x      = canvas.width  / 2 - this.width  / 2;
     this.y      = canvas.height - this.height - 40;
-    this.speed  = 5;
+    this.speed  = 8;
     this.lives  = 3;
     this.score  = 0;
     this.shootCooldown   = 0;
@@ -416,6 +416,51 @@ class Enemy {
   }
 }
 
+// ── Health Pickup ────────────────────────────────────────────
+class HealthPickup {
+  constructor() {
+    this.width  = 28;
+    this.height = 28;
+    this.x      = rand(20, canvas.width - 48);
+    this.y      = -40;
+    this.speed  = 1.8;
+    this.dead   = false;
+    this.pulse  = 0;
+  }
+  update() {
+    this.y    += this.speed;
+    this.pulse = (this.pulse + 0.08) % (Math.PI * 2);
+    if (this.y > canvas.height + 40) this.dead = true;
+  }
+  draw() {
+    const cx = this.x + this.width  / 2;
+    const cy = this.y + this.height / 2;
+    const scale = 1 + Math.sin(this.pulse) * 0.12;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(scale, scale);
+    // Glow ring
+    ctx.beginPath();
+    ctx.arc(0, 0, 18, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,255,120,0.08)';
+    ctx.shadowColor = '#00ff88';
+    ctx.shadowBlur  = 22;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,255,140,0.55)';
+    ctx.lineWidth   = 2;
+    ctx.stroke();
+    // Heart emoji
+    ctx.font = '20px serif';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor  = '#ff4488';
+    ctx.shadowBlur   = 14;
+    ctx.fillStyle    = '#fff';
+    ctx.fillText('❤️', 0, 1);
+    ctx.restore();
+  }
+}
+
 // Colour helpers
 function lighten(hex, amount) { return shiftColor(hex, amount); }
 function darken(hex, amount)  { return shiftColor(hex, -amount); }
@@ -484,8 +529,8 @@ class WaveManager {
 
 // ── Game state ────────────────────────────────────────────────
 let state = 'start'; // 'start' | 'playing' | 'gameover'
-let player, enemies, bullets, particles, stars, waveManager;
-let score, waveKills, killsPerWave, frameCount, animId;
+let player, enemies, bullets, particles, stars, waveManager, healthPickups;
+let score, waveKills, killsPerWave, frameCount, animId, healthSpawnTimer;
 
 const KILLS_PER_WAVE = 8;
 
@@ -495,15 +540,17 @@ function initStars() {
 }
 
 function initGame() {
-  player      = new Player();
-  enemies     = [];
-  bullets     = [];
-  particles   = [];
-  waveManager = new WaveManager();
-  score       = 0;
-  waveKills   = 0;
-  killsPerWave = KILLS_PER_WAVE;
-  frameCount  = 0;
+  player           = new Player();
+  enemies          = [];
+  bullets          = [];
+  particles        = [];
+  healthPickups    = [];
+  waveManager      = new WaveManager();
+  score            = 0;
+  waveKills        = 0;
+  killsPerWave     = KILLS_PER_WAVE;
+  frameCount       = 0;
+  healthSpawnTimer = 0;
 
   updateHUD();
   renderLives();
@@ -525,7 +572,8 @@ function popScore() {
 
 function renderLives() {
   livesDisplay.innerHTML = '';
-  for (let i = 0; i < 3; i++) {
+  const display = Math.max(player.lives, 3); // always show at least 3 slots
+  for (let i = 0; i < display; i++) {
     const span = document.createElement('span');
     span.className = 'heart' + (i >= player.lives ? ' lost' : '');
     span.textContent = '❤️';
@@ -623,6 +671,24 @@ function update() {
     }
   });
 
+  // Health pickups — spawn every ~600 frames
+  healthSpawnTimer++;
+  if (healthSpawnTimer >= 600) {
+    healthSpawnTimer = 0;
+    healthPickups.push(new HealthPickup());
+  }
+  healthPickups.forEach(h => h.update());
+  healthPickups = healthPickups.filter(h => {
+    if (!h.dead && collides(h, player)) {
+      player.lives++;
+      renderLives();
+      // small green particles burst
+      spawnExplosion(particles, h.x + h.width/2, h.y + h.height/2, '#00ff88', 14);
+      return false; // remove pickup
+    }
+    return !h.dead;
+  });
+
   // Clean up dead
   enemies   = enemies.filter(e => !e.dead);
   bullets   = bullets.filter(b => !b.dead);
@@ -652,6 +718,7 @@ function draw() {
 
   // Game objects
   particles.forEach(p => p.draw());
+  healthPickups.forEach(h => h.draw());
   enemies.forEach(e => e.draw());
   bullets.forEach(b => b.draw());
   player.draw();
