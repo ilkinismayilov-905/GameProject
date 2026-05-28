@@ -125,14 +125,77 @@ I chose **OOP** because:
 
 ### Class Structure
 
+Below is the Object-Oriented Programming (OOP) class diagram showing all major classes, their properties/methods, and their associations:
+
+```mermaid
+classDiagram
+    class GameLoop {
+        +update()
+        +draw()
+        +state: "start" | "playing" | "gameover"
+    }
+
+    class Player {
+        +x, y, baseSpeed
+        +lives, score
+        +tripleShot, rapidFire, speedBoost, shield
+        +shoot(bullets)
+        +takeDamage(particles)
+        +draw()
+    }
+
+    class Bullet {
+        +x, y, dy, color
+        +isPlayer: boolean
+        +update()
+        +draw()
+    }
+
+    class Enemy {
+        +key: scout | cruiser | dreadnought
+        +hp, speed, points
+        +wobbleSpeed, wobbleAmp
+        +takeDamage(amount, particles)
+        +update(bullets)
+        +draw()
+    }
+
+    class PowerUp {
+        +type: health | triple | rapid | shield | speed
+        +x, y, speed, angle, pulse
+        +update()
+        +draw()
+    }
+
+    class Star {
+        +x, y, speed, size, alpha
+        +update()
+        +draw()
+    }
+
+    class Particle {
+        +x, y, vx, vy, radius, color, life
+        +update()
+        +draw()
+    }
+
+    class WaveManager {
+        +wave, spawnRate, spawnTimer
+        +update(enemies, bullets)
+        +nextWave()
+    }
+
+    GameLoop --> Player : "İdarə edir və yeniləyir"
+    GameLoop --> Bullet : "Güllələri yeniləyir və silir"
+    GameLoop --> Enemy : "Düşmənləri hərəkət etdirir"
+    GameLoop --> PowerUp : "Aktiv gücləri paylayır"
+    GameLoop --> Star : "Fon ulduzlarını axıdır"
+    GameLoop --> Particle : "Partlayış hissəciklərini idarə edir"
+    GameLoop --> WaveManager : "Dalğaları tənzimləyir"
+    Player --> Bullet : "Güllə yaradır"
+    Enemy --> Bullet : "Düşmən gülləsi yaradır"
 ```
-Player      → movement, shooting, lives, invincibility
-Enemy       → 3 types (scout / cruiser / dreadnought), wobble, shoot, HP
-Bullet      → player or enemy, direction, glow trail
-Particle    → explosion debris, gravity, alpha fade
-Star        → scrolling background parallax
-WaveManager → controls enemy spawn rate & wave escalation
-```
+
 
 ### Game Loop
 
