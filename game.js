@@ -165,14 +165,19 @@ class Player {
     this.height = 56;
     this.x      = canvas.width  / 2 - this.width  / 2;
     this.y      = canvas.height - this.height - 40;
-    this.speed  = 8;
+    this.baseSpeed = 11; // increased default speed for faster movement
     this.lives  = 3;
     this.score  = 0;
     this.shootCooldown   = 0;
-    this.shootDelay      = 14; // frames
+    this.shootDelay      = 9;  // reduced cooldown for faster default shooting
     this.invincible      = 0;  // invincibility frames after hit
     this.thrusterFlicker = 0;  // commit
     this.dead   = false;
+    // Power-up states
+    this.tripleShot  = 0; // frames remaining
+    this.rapidFire   = 0; // frames remaining
+    this.speedBoost  = 0; // frames remaining for speed boost
+    this.shield      = false;
   }
 
   update() {
@@ -182,8 +187,9 @@ class Player {
     const moveY = (keys['ArrowUp']    || keys['w'] || keys['W']) ? -1
                 : (keys['ArrowDown']  || keys['s'] || keys['S']) ?  1 : 0;
 
-    this.x += moveX * this.speed;
-    this.y += moveY * this.speed * 0.6;
+    const speed = this.speedBoost > 0 ? 17 : this.baseSpeed;
+    this.x += moveX * speed;
+    this.y += moveY * speed * 0.6;
 
     // Clamp to canvas
     this.x = Math.max(0, Math.min(canvas.width  - this.width,  this.x));
@@ -192,18 +198,36 @@ class Player {
     // Shooting
     if (this.shootCooldown > 0) this.shootCooldown--;
     if (this.invincible    > 0) this.invincible--;
+    if (this.tripleShot    > 0) this.tripleShot--;
+    if (this.rapidFire     > 0) this.rapidFire--;
+    if (this.speedBoost    > 0) this.speedBoost--;
     this.thrusterFlicker = (this.thrusterFlicker + 1) % 6;
   }
 
   shoot(bullets) {
     if (this.shootCooldown > 0) return;
     const cx = this.x + this.width / 2;
-    bullets.push(new Bullet(cx, this.y - 4, -12, '#00e5ff', true));
-    this.shootCooldown = this.shootDelay;
+    const delay = this.rapidFire > 0 ? Math.max(2, Math.floor(this.shootDelay / 2)) : this.shootDelay;
+    if (this.tripleShot > 0) {
+      // Center + two angled bullets
+      bullets.push(new Bullet(cx,      this.y - 4, -16,   '#00e5ff', true));
+      bullets.push(new Bullet(cx - 14, this.y + 4, -15.5, '#a78bfa', true));
+      bullets.push(new Bullet(cx + 14, this.y + 4, -15.5, '#a78bfa', true));
+    } else {
+      bullets.push(new Bullet(cx, this.y - 4, -16, '#00e5ff', true));
+    }
+    this.shootCooldown = delay;
   }
 
   takeDamage(particles) {
     if (this.invincible > 0) return false;
+    if (this.shield) {
+      this.shield = false;
+      this.invincible = 60;
+      spawnExplosion(particles, this.x + this.width / 2, this.y + this.height / 2, '#60a5fa', 14);
+      renderPowerupHUD();
+      return true;
+    }
     this.lives--;
     this.invincible = 90; // 1.5 sec at 60fps
     spawnExplosion(particles, this.x + this.width / 2, this.y + this.height / 2, '#ff3366', 18);
@@ -220,12 +244,40 @@ class Player {
     ctx.save();
     ctx.translate(cx, cy);
 
+    // --- Dynamic colors based on active power-up ---
+    let primaryColor   = '#7b2fff'; // default purple
+    let secondaryColor = '#b07cff';
+    let darkColor      = '#3a007a';
+    let glowColor      = '#00e5ff'; // default cyan cockpit
+
+    if (this.shield) {
+      primaryColor   = '#2563eb';
+      secondaryColor = '#60a5fa';
+      darkColor      = '#1e3a8a';
+      glowColor      = '#93c5fd';
+    } else if (this.tripleShot > 0) {
+      primaryColor   = '#7c3aed';
+      secondaryColor = '#a78bfa';
+      darkColor      = '#4c1d95';
+      glowColor      = '#c084fc';
+    } else if (this.rapidFire > 0) {
+      primaryColor   = '#d97706';
+      secondaryColor = '#facc15';
+      darkColor      = '#78350f';
+      glowColor      = '#fef08a';
+    } else if (this.speedBoost > 0) {
+      primaryColor   = '#e11d48';
+      secondaryColor = '#f43f5e';
+      darkColor      = '#4c0519';
+      glowColor      = '#fda4af';
+    }
+
     // --- Thruster flame ---
     const flicker = this.thrusterFlicker < 3 ? 1 : 0.75;
-    const flameH  = 20 * flicker;
+    const flameH  = (this.speedBoost > 0 ? 32 : 20) * flicker;
     const thrustGrad = ctx.createLinearGradient(0, 22, 0, 22 + flameH);
-    thrustGrad.addColorStop(0, 'rgba(0,229,255,0.9)');
-    thrustGrad.addColorStop(0.5, 'rgba(123,47,255,0.7)');
+    thrustGrad.addColorStop(0, secondaryColor);
+    thrustGrad.addColorStop(0.5, primaryColor);
     thrustGrad.addColorStop(1, 'transparent');
     ctx.beginPath();
     ctx.moveTo(-10, 22);
@@ -233,19 +285,19 @@ class Player {
     ctx.lineTo(  0, 22 + flameH);
     ctx.closePath();
     ctx.fillStyle = thrustGrad;
-    ctx.shadowColor = '#00e5ff';
+    ctx.shadowColor = secondaryColor;
     ctx.shadowBlur  = 20;
     ctx.fill();
 
     // --- Ship body ---
-    ctx.shadowColor = '#7b2fff';
+    ctx.shadowColor = primaryColor;
     ctx.shadowBlur  = 22;
 
     // Hull gradient
     const bodyGrad = ctx.createLinearGradient(-24, -28, 24, 28);
-    bodyGrad.addColorStop(0,   '#b07cff');
-    bodyGrad.addColorStop(0.5, '#7b2fff');
-    bodyGrad.addColorStop(1,   '#3a007a');
+    bodyGrad.addColorStop(0,   secondaryColor);
+    bodyGrad.addColorStop(0.5, primaryColor);
+    bodyGrad.addColorStop(1,   darkColor);
 
     // Main body
     ctx.beginPath();
@@ -262,11 +314,11 @@ class Player {
     // Cockpit window
     ctx.beginPath();
     ctx.ellipse(0, -6, 7, 10, 0, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0,229,255,0.25)';
-    ctx.shadowColor = '#00e5ff';
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.shadowColor = glowColor;
     ctx.shadowBlur  = 14;
     ctx.fill();
-    ctx.strokeStyle = 'rgba(0,229,255,0.6)';
+    ctx.strokeStyle = glowColor;
     ctx.lineWidth   = 1.5;
     ctx.stroke();
 
@@ -416,47 +468,114 @@ class Enemy {
   }
 }
 
-// ── Health Pickup ────────────────────────────────────────────
-class HealthPickup {
+// ── Power-up definitions ──────────────────────────────────────
+const POWERUP_TYPES = [
+  {
+    key:       'health',
+    emoji:     '❤️',
+    ringColor: '#00ff88',
+    ringFill:  'rgba(0,255,120,0.08)',
+    ringStroke:'rgba(0,255,140,0.55)',
+    glowColor: '#ff4488',
+    label:     '+1 LIFE',
+  },
+  {
+    key:       'triple',
+    emoji:     '🔱',
+    ringColor: '#a78bfa',
+    ringFill:  'rgba(167,139,250,0.10)',
+    ringStroke:'rgba(167,139,250,0.60)',
+    glowColor: '#7c3aed',
+    label:     'TRIPLE SHOT',
+  },
+  {
+    key:       'rapid',
+    emoji:     '⚡',
+    ringColor: '#facc15',
+    ringFill:  'rgba(250,204,21,0.10)',
+    ringStroke:'rgba(250,204,21,0.55)',
+    glowColor: '#d97706',
+    label:     'RAPID FIRE',
+  },
+  {
+    key:       'shield',
+    emoji:     '🛡️',
+    ringColor: '#60a5fa',
+    ringFill:  'rgba(96,165,250,0.10)',
+    ringStroke:'rgba(96,165,250,0.55)',
+    glowColor: '#1d4ed8',
+    label:     'SHIELD',
+  },
+  {
+    key:       'speed',
+    emoji:     '🚀',
+    ringColor: '#f43f5e',
+    ringFill:  'rgba(244,63,94,0.10)',
+    ringStroke:'rgba(244,63,94,0.55)',
+    glowColor: '#be123c',
+    label:     'SPEED BOOST',
+  },
+];
+
+class PowerUp {
   constructor() {
-    this.width  = 28;
-    this.height = 28;
-    this.x      = rand(20, canvas.width - 48);
-    this.y      = -40;
-    this.speed  = 1.8;
+    this.type   = POWERUP_TYPES[randInt(0, POWERUP_TYPES.length - 1)];
+    this.width  = 32;
+    this.height = 32;
+    this.x      = rand(24, canvas.width - 56);
+    this.y      = -50;
+    this.speed  = 1.6;
     this.dead   = false;
-    this.pulse  = 0;
+    this.pulse  = rand(0, Math.PI * 2);
+    this.angle  = 0;
   }
   update() {
-    this.y    += this.speed;
-    this.pulse = (this.pulse + 0.08) % (Math.PI * 2);
-    if (this.y > canvas.height + 40) this.dead = true;
+    this.y     += this.speed;
+    this.pulse  = (this.pulse + 0.07) % (Math.PI * 2);
+    this.angle += 0.02;
+    if (this.y > canvas.height + 50) this.dead = true;
   }
   draw() {
+    const t  = this.type;
     const cx = this.x + this.width  / 2;
     const cy = this.y + this.height / 2;
-    const scale = 1 + Math.sin(this.pulse) * 0.12;
+    const sc = 1 + Math.sin(this.pulse) * 0.13;
     ctx.save();
     ctx.translate(cx, cy);
-    ctx.scale(scale, scale);
-    // Glow ring
+    ctx.scale(sc, sc);
+
+    // Rotating outer glow ring
     ctx.beginPath();
-    ctx.arc(0, 0, 18, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0,255,120,0.08)';
-    ctx.shadowColor = '#00ff88';
-    ctx.shadowBlur  = 22;
+    ctx.arc(0, 0, 20, 0, Math.PI * 2);
+    ctx.fillStyle   = t.ringFill;
+    ctx.shadowColor = t.ringColor;
+    ctx.shadowBlur  = 26;
     ctx.fill();
-    ctx.strokeStyle = 'rgba(0,255,140,0.55)';
-    ctx.lineWidth   = 2;
+    ctx.strokeStyle = t.ringStroke;
+    ctx.lineWidth   = 2.5;
     ctx.stroke();
-    // Heart emoji
-    ctx.font = '20px serif';
+
+    // Dashed spinning ring
+    ctx.save();
+    ctx.rotate(this.angle);
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.arc(0, 0, 16, 0, Math.PI * 2);
+    ctx.strokeStyle = t.ringColor;
+    ctx.globalAlpha = 0.45;
+    ctx.lineWidth   = 1.5;
+    ctx.stroke();
+    ctx.restore();
+
+    // Emoji — perfectly centered
+    ctx.font         = '18px serif';
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
-    ctx.shadowColor  = '#ff4488';
-    ctx.shadowBlur   = 14;
-    ctx.fillStyle    = '#fff';
-    ctx.fillText('❤️', 0, 1);
+    ctx.shadowColor  = t.glowColor;
+    ctx.shadowBlur   = 16;
+    ctx.globalAlpha  = 1;
+    ctx.fillText(t.emoji, 0, 0);
+
     ctx.restore();
   }
 }
@@ -529,8 +648,8 @@ class WaveManager {
 
 // ── Game state ────────────────────────────────────────────────
 let state = 'start'; // 'start' | 'playing' | 'gameover'
-let player, enemies, bullets, particles, stars, waveManager, healthPickups;
-let score, waveKills, killsPerWave, frameCount, animId, healthSpawnTimer;
+let player, enemies, bullets, particles, stars, waveManager, powerups;
+let score, waveKills, killsPerWave, frameCount, animId, powerupSpawnTimer;
 
 const KILLS_PER_WAVE = 8;
 
@@ -544,19 +663,22 @@ function initGame() {
   enemies          = [];
   bullets          = [];
   particles        = [];
-  healthPickups    = [];
+  powerups         = [];
   waveManager      = new WaveManager();
   score            = 0;
   waveKills        = 0;
   killsPerWave     = KILLS_PER_WAVE;
   frameCount       = 0;
-  healthSpawnTimer = 0;
+  powerupSpawnTimer = 0;
 
   updateHUD();
   renderLives();
+  renderPowerupHUD();
 }
 
 // ── HUD helpers ───────────────────────────────────────────────
+const powerupHUD = document.getElementById('powerup-hud');
+
 function updateHUD() {
   hudScore.textContent     = score;
   hudWave.textContent      = waveManager ? waveManager.wave : 1;
@@ -579,6 +701,19 @@ function renderLives() {
     span.textContent = '❤️';
     livesDisplay.appendChild(span);
   }
+}
+
+function renderPowerupHUD() {
+  if (!powerupHUD || !player) return;
+  const items = [];
+  if (player.shield)             items.push({ emoji: '🛡️', label: 'SHIELD',       color: '#60a5fa' });
+  if (player.tripleShot > 0)     items.push({ emoji: '🔱', label: 'TRIPLE',       color: '#a78bfa', frames: player.tripleShot });
+  if (player.rapidFire  > 0)     items.push({ emoji: '⚡', label: 'RAPID',        color: '#facc15', frames: player.rapidFire  });
+  if (player.speedBoost > 0)     items.push({ emoji: '🚀', label: 'SPEED',        color: '#f43f5e', frames: player.speedBoost });
+  powerupHUD.innerHTML = items.map(it => {
+    const secs = it.frames ? Math.ceil(it.frames / 60) + 's' : '';
+    return `<span class="pup-badge" style="border-color:${it.color};color:${it.color}">${it.emoji} ${it.label}${secs ? ' ' + secs : ''}</span>`;
+  }).join('');
 }
 
 // ── Screen transitions ────────────────────────────────────────
@@ -671,23 +806,44 @@ function update() {
     }
   });
 
-  // Health pickups — spawn every ~600 frames
-  healthSpawnTimer++;
-  if (healthSpawnTimer >= 600) {
-    healthSpawnTimer = 0;
-    healthPickups.push(new HealthPickup());
+  // Power-ups — spawn every ~500 frames, chance weighted by wave
+  powerupSpawnTimer++;
+  const spawnInterval = Math.max(280, 500 - waveManager.wave * 15);
+  if (powerupSpawnTimer >= spawnInterval) {
+    powerupSpawnTimer = 0;
+    powerups.push(new PowerUp());
   }
-  healthPickups.forEach(h => h.update());
-  healthPickups = healthPickups.filter(h => {
-    if (!h.dead && collides(h, player)) {
-      player.lives++;
-      renderLives();
-      // small green particles burst
-      spawnExplosion(particles, h.x + h.width/2, h.y + h.height/2, '#00ff88', 14);
-      return false; // remove pickup
+  powerups.forEach(p => p.update());
+  powerups = powerups.filter(p => {
+    if (!p.dead && collides(p, player)) {
+      const key = p.type.key;
+      const cx  = p.x + p.width  / 2;
+      const cy  = p.y + p.height / 2;
+      if (key === 'health') {
+        player.lives++;
+        renderLives();
+        spawnExplosion(particles, cx, cy, '#00ff88', 14);
+      } else if (key === 'triple') {
+        player.tripleShot = 480; // 8 seconds
+        spawnExplosion(particles, cx, cy, '#a78bfa', 14);
+      } else if (key === 'rapid') {
+        player.rapidFire = 480;
+        spawnExplosion(particles, cx, cy, '#facc15', 14);
+      } else if (key === 'shield') {
+        player.shield = true;
+        spawnExplosion(particles, cx, cy, '#60a5fa', 14);
+      } else if (key === 'speed') {
+        player.speedBoost = 480; // 8 seconds
+        spawnExplosion(particles, cx, cy, '#f43f5e', 14);
+      }
+      renderPowerupHUD();
+      return false;
     }
-    return !h.dead;
+    return !p.dead;
   });
+
+  // Tick powerup HUD every 60 frames
+  if (frameCount % 60 === 0) renderPowerupHUD();
 
   // Clean up dead
   enemies   = enemies.filter(e => !e.dead);
@@ -718,10 +874,27 @@ function draw() {
 
   // Game objects
   particles.forEach(p => p.draw());
-  healthPickups.forEach(h => h.draw());
+  powerups.forEach(p => p.draw());
   enemies.forEach(e => e.draw());
   bullets.forEach(b => b.draw());
   player.draw();
+
+  // Shield aura around player when active
+  if (player && player.shield) {
+    const cx = player.x + player.width  / 2;
+    const cy = player.y + player.height / 2;
+    const r  = 34 + Math.sin(frameCount * 0.08) * 4;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.strokeStyle = '#60a5fa';
+    ctx.lineWidth   = 2.5;
+    ctx.shadowColor = '#3b82f6';
+    ctx.shadowBlur  = 18;
+    ctx.globalAlpha = 0.55 + Math.sin(frameCount * 0.1) * 0.15;
+    ctx.stroke();
+    ctx.restore();
+  }
 }
 
 function gameLoop() {

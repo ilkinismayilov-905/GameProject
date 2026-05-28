@@ -23,20 +23,64 @@ You pilot a lone starship defending against endless waves of alien invaders. Thr
 | **Particle** | Explosion debris on death or hit |
 | **Star** | Scrolling background parallax decoration |
 
-### 🖼️ Game Sketch (Excalidraw)
+### 🖼️ Game Sketch & Blueprint (Excalidraw)
 
-> _See `excalidraw-sketch.png` in the repo root (exported from Excalidraw planning session)_
+![Space Shooter Game Blueprint & Power-Ups](excalidraw-sketch.png)
 
-```
-┌─────────────────────────────┐
-│  ★  ★     ★        ★       │
-│         ◆  ⬡               │
-│    ★          ⬡   ★         │
-│       ◆                    │
-│   |  (bullet)              │
-│   ▲  (player ship)         │
-│  HUD: SCORE | WAVE | LIVES │
-└─────────────────────────────┘
+
+### 📐 Architecture & Data Flow (Excalidraw Diagram)
+
+Below is the design and architecture blueprint showing the game loop, player states, HUD updates, and the dynamic power-up reactive system:
+
+```mermaid
+graph TD
+    %% Base Styles
+    classDef loop fill:#111,stroke:#7b2fff,stroke-width:2px,color:#fff;
+    classDef player fill:#1d4ed8,stroke:#60a5fa,stroke-width:2px,color:#fff;
+    classDef powerup fill:#0f172a,stroke:#facc15,stroke-width:2px,color:#fff;
+    classDef system fill:#064e3b,stroke:#00ff88,stroke-width:2px,color:#fff;
+    classDef UI fill:#1e1b4b,stroke:#a78bfa,stroke-width:2px,color:#fff;
+
+    %% Elements
+    GameLoop["🔄 Core Game Loop (gameLoop / update / draw)"]:::loop
+    PlayerInput["⌨️ Player Inputs (Keys W/A/S/D / Space)"]:::player
+    PlayerState["🚀 Player Entity (x, y, lives, speedBoost, shield, rapidFire, tripleShot)"]:::player
+    PowerUpManager["⚡ Power-up Spawn Engine (spawns random PowerUp)"]:::powerup
+    PowerUpCollision["💥 Collision Detector (AABB)"]:::system
+    
+    subgraph Reactive Skins (Visual Feedback)
+        DynamicSkin["🎨 Dynamic Renderer (draw)"]:::player
+        DefaultPurple["💜 Purple Default Skin"]:::player
+        ShieldBlue["💙 Blue Qalxan (Shield)"]:::player
+        TriplePurple["💜 Purple Triple Shot"]:::player
+        RapidYellow["💛 Yellow Sürətli Atəş (Rapid)"]:::player
+        SpeedRose["❤️ Rose Sürətli Hərəkət (Speed)"]:::player
+    end
+
+    subgraph User Interface (HUD)
+        HUD_Score["🏆 HUD Score & HighScore"]:::UI
+        HUD_Lives["❤️ HUD Lives Indicator"]:::UI
+        HUD_Powerups["📊 Power-up Status Badges & Timers"]:::UI
+    end
+
+    %% Flow Connections
+    GameLoop -->|"1. Poll Input"| PlayerInput
+    PlayerInput -->|"2. Update Position / Shoot"| PlayerState
+    GameLoop -->|"3. Auto Spawn Every ~8s"| PowerUpManager
+    PowerUpManager -->|"Spawn Object"| PowerUpCollision
+    PlayerState -->|"Verify Collision"| PowerUpCollision
+    
+    PowerUpCollision -->|"Apply Buffs"| PlayerState
+    
+    PlayerState -->|"4. Draw Ship Structure"| DynamicSkin
+    DynamicSkin -->|"Check Shield"| ShieldBlue
+    DynamicSkin -->|"Check TripleShot"| TriplePurple
+    DynamicSkin -->|"Check RapidFire"| RapidYellow
+    DynamicSkin -->|"Check SpeedBoost"| SpeedRose
+    DynamicSkin -->|"No Active Powerup"| DefaultPurple
+
+    PlayerState -->|"5. Update HUD Info"| HUD_Powerups
+    PlayerState -->|"Update Canlar"| HUD_Lives
 ```
 
 ---
@@ -81,14 +125,77 @@ I chose **OOP** because:
 
 ### Class Structure
 
+Below is the Object-Oriented Programming (OOP) class diagram showing all major classes, their properties/methods, and their associations:
+
+```mermaid
+classDiagram
+    class GameLoop {
+        +update()
+        +draw()
+        +state: "start" | "playing" | "gameover"
+    }
+
+    class Player {
+        +x, y, baseSpeed
+        +lives, score
+        +tripleShot, rapidFire, speedBoost, shield
+        +shoot(bullets)
+        +takeDamage(particles)
+        +draw()
+    }
+
+    class Bullet {
+        +x, y, dy, color
+        +isPlayer: boolean
+        +update()
+        +draw()
+    }
+
+    class Enemy {
+        +key: scout | cruiser | dreadnought
+        +hp, speed, points
+        +wobbleSpeed, wobbleAmp
+        +takeDamage(amount, particles)
+        +update(bullets)
+        +draw()
+    }
+
+    class PowerUp {
+        +type: health | triple | rapid | shield | speed
+        +x, y, speed, angle, pulse
+        +update()
+        +draw()
+    }
+
+    class Star {
+        +x, y, speed, size, alpha
+        +update()
+        +draw()
+    }
+
+    class Particle {
+        +x, y, vx, vy, radius, color, life
+        +update()
+        +draw()
+    }
+
+    class WaveManager {
+        +wave, spawnRate, spawnTimer
+        +update(enemies, bullets)
+        +nextWave()
+    }
+
+    GameLoop --> Player : "İdarə edir və yeniləyir"
+    GameLoop --> Bullet : "Güllələri yeniləyir və silir"
+    GameLoop --> Enemy : "Düşmənləri hərəkət etdirir"
+    GameLoop --> PowerUp : "Aktiv gücləri paylayır"
+    GameLoop --> Star : "Fon ulduzlarını axıdır"
+    GameLoop --> Particle : "Partlayış hissəciklərini idarə edir"
+    GameLoop --> WaveManager : "Dalğaları tənzimləyir"
+    Player --> Bullet : "Güllə yaradır"
+    Enemy --> Bullet : "Düşmən gülləsi yaradır"
 ```
-Player      → movement, shooting, lives, invincibility
-Enemy       → 3 types (scout / cruiser / dreadnought), wobble, shoot, HP
-Bullet      → player or enemy, direction, glow trail
-Particle    → explosion debris, gravity, alpha fade
-Star        → scrolling background parallax
-WaveManager → controls enemy spawn rate & wave escalation
-```
+
 
 ### Game Loop
 
